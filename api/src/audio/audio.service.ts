@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import * as speech from '@google-cloud/speech';
 import * as textToSpeech from '@google-cloud/text-to-speech';
 import { HfInference } from '@huggingface/inference';
+import * as path from 'path';
 
 @Injectable()
 export class AudioService {
@@ -10,36 +11,52 @@ export class AudioService {
   private hf: HfInference;
 
   constructor() {
+    const keyFilePath = path.resolve(
+      process.env.GOOGLE_APPLICATION_CREDENTIALS!,
+    );
     // Initialize Google Cloud clients
     this.speechClient = new speech.SpeechClient();
     this.ttsClient = new textToSpeech.TextToSpeechClient();
+
+    this.speechClient = new speech.SpeechClient({
+      keyFilename: keyFilePath,
+    });
+    this.ttsClient = new textToSpeech.TextToSpeechClient({
+      keyFilename: keyFilePath,
+    });
     this.hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
   }
 
   async transcribeAudio(audioBuffer: Buffer): Promise<string> {
     try {
-      // Convert audio buffer to base64
       const audioContent = audioBuffer.toString('base64');
 
-      // Configure the request
       const request: speech.protos.google.cloud.speech.v1.IRecognizeRequest = {
         audio: {
           content: audioContent,
         },
         config: {
-          encoding: 'LINEAR16',
-          sampleRateHertz: 16000,
+          // WebM typically uses OggOpus encoding
+          encoding: 'WEBM_OPUS',
+          // Default sample rate for WebM
+          sampleRateHertz: 48000,
           languageCode: 'en-US',
+          // Add these for better results
+          model: 'default',
+          useEnhanced: true,
         },
       };
 
-      // Detects speech in the audio file
       const [response] = await this.speechClient.recognize(request);
-      const transcription = response?.results
-        ?.map((result) => {
-          if (result?.alternatives) return result?.alternatives[0]?.transcript;
-        })
-        ?.join('\n');
+
+      if (!response.results || response.results.length === 0) {
+        return 'No speech detected';
+      }
+
+      const transcription = response.results
+        .map((result) => result.alternatives?.[0]?.transcript || '')
+        .filter((text) => text.length > 0)
+        .join('\n');
 
       return transcription || 'No speech detected';
     } catch (error) {
