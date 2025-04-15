@@ -151,7 +151,7 @@ export class AudioService {
     return new Promise((resolve, reject) => {
 
       // Example: Nigerian English voice
-      this.speechConfig.speechSynthesisVoiceName = 'en-NG-AbaNeural';
+      this.speechConfig.speechSynthesisVoiceName = 'en-NG-EzinneNeural';
       this.speechConfig.speechSynthesisOutputFormat = sdk.SpeechSynthesisOutputFormat.Audio16Khz32KBitRateMonoMp3;
 
       const synthesizer = new sdk.SpeechSynthesizer(this.speechConfig);
